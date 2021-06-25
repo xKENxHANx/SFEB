@@ -19,6 +19,9 @@ cols = 150
 tile_size = root_y // rows
 tile_types = 21
 level = 1
+screen_scroll = 0
+scroll_tresh = 0
+bg_scroll = 0
 
 moving_left = False
 moving_right = False
@@ -62,7 +65,7 @@ def draw_text(text, font, text_col, x, y):
 
 def draw_bg():
     root.fill(BG)
-    pygame.draw.line(root, red, (0,400), (root_x,400))
+    #pygame.draw.line(root, red, (0,400), (root_x,400))
 
 
 class Solder(pygame.sprite.Sprite):
@@ -106,6 +109,8 @@ class Solder(pygame.sprite.Sprite):
         self.image = self.animation_list[self.action][self.frame_index]
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
+        self.width = self.image.get_width()
+        self.height = self.image.get_height()
 
     def update(self):
         self.update_animation()
@@ -114,6 +119,7 @@ class Solder(pygame.sprite.Sprite):
             self.shoot_cooldown -= 1
 
     def move(self, moving_left, moving_right):
+        screen_scroll = 0
         dx = 0
         dy = 0
 
@@ -138,12 +144,31 @@ class Solder(pygame.sprite.Sprite):
             self.vel_y
         dy += self.vel_y
 
-        if self.rect.bottom + dy > 400:
-            dy = 400 - self.rect.bottom
-            self.in_air = False
+        for tile in world.obstacle_list:
+            if tile[1].colliderect(self.rect.x + dx, self.rect.y, self.width, self.height):
+                dx = 0
+            if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.width, self.height):
+                if self.vel_y < 0:
+                    self.vel_y = 0
+                    dy = tile[1].bottom - self.rect.top
+                elif self.vel_y >= 0:
+                    self.vel_y = 0
+                    self.in_air = False
+                    dy = tile[1].top - self.rect.bottom
+
+        if self.char_type == 'player':
+            if self.rect.left + dx < 0 or self.rect.right + dx > root_x:
+                dx = 0
         
         self.rect.x += dx
         self.rect.y += dy
+
+        if self.char_type == 'player':
+            if (self.rect.right + dx < root_x - scroll_tresh and bg_scroll < (world.level_length * tile_size)- root_x) or (self.rect.left < scroll_tresh and bg_scroll > abs(dx)): #переделать
+                self.rect.x -= dx
+                screen_scroll -= dx
+
+        return screen_scroll
 
     def shoot(self):
         if self.shoot_cooldown == 0 and self.ammo > 0:
@@ -215,45 +240,48 @@ class World():
         self.obstacle_list = []
 
     def process_data(self, data):
+        self.level_lenght = len(data[0])
         for y, row in enumerate(data):
             for x, tile in enumerate(row):
-                img = img_list[tile]
-                img_rect = img.get_rect()
-                img_rect.x = x * tile_size
-                img_rect.y = y * tile_size
-                tile_data = (img, img_rect)
-                
-                if tile >= 0 and tile <= 8:
-                    self.obstacle_list.append(tile_data)
-                elif tile >= 9 and tile <= 10:
-                    water = Water(img, x * tile_size, y * tile_size)
-                    water_group.add(water)
-                elif tile >= 11 and tile <= 14:
-                    decoration = Decoration(img, x * tile_size, y * tile_size)
-                    decoration_group.add(water)
-                elif tile == 15: #персонаж
-                    player = Solder('player', x * tile_size, y * tile_size, 1.65, 5, 20, 5)
-                    health_bar = HealthBar(10, 10, player.health, player.health)
-                elif tile == 16: #персонаж
-                    enemy = Solder('enemy', x * tile_size, y * tile_size, 1.65, 5, 20, 5) #если что убрать гранаты если сломается!!!!!!!!!!!!!!
-                    enemy_group.add(enemy)
-                elif tile == 17:
-                    item_box = ItemBox('Ammo', x * tile_size, y * tile_size)
-                    item_box_group.add(item_box)
-                elif tile == 18:
-                    item_box = ItemBox('Grenade', x * tile_size, y * tile_size)
-                    item_box_group.add(item_box)
-                elif tile == 19:
-                    item_box = ItemBox('Health', x * tile_size, y * tile_size)
-                    item_box_group.add(item_box)
-                elif tile == 20:
-                    exit = Exit(img, x * tile_size, y * tile_size)
-                    exit_group.add(exit)
+                if tile >= 0:
+                    img = img_list[tile]
+                    img_rect = img.get_rect()
+                    img_rect.x = x * tile_size
+                    img_rect.y = y * tile_size
+                    tile_data = (img, img_rect)
+
+                    if tile >= 0 and tile <= 8:
+                    	self.obstacle_list.append(tile_data)
+                    elif tile >= 9 and tile <= 10:
+                    	water = Water(img, x * tile_size, y * tile_size)
+                    	water_group.add(water)
+                    elif tile >= 11 and tile <= 14:
+                    	decoration = Decoration(img, x * tile_size, y * tile_size)
+                    	decoration_group.add(decoration)
+                    elif tile == 15:#create player
+                    	player = Solder('player', x * tile_size, y * tile_size, 1.65, 5, 50, 15)
+                    	health_bar = HealthBar(10, 10, player.health, player.health)
+                    elif tile == 16:#create enemies
+                    	enemy = Solder('enemy', x * tile_size, y * tile_size, 1.65, 2, 20, 0)
+                    	enemy_group.add(enemy)
+                    elif tile == 17:#create ammo box
+                    	item_box = ItemBox('Ammo', x * tile_size, y * tile_size)
+                    	item_box_group.add(item_box)
+                    elif tile == 18:#create grenade box
+                    	item_box = ItemBox('Grenade', x * tile_size, y * tile_size)
+                    	item_box_group.add(item_box)
+                    elif tile == 19:#create health box
+                    	item_box = ItemBox('Health', x * tile_size, y * tile_size)
+                    	item_box_group.add(item_box)
+                    elif tile == 20:#create exit
+                    	exit = Exit(img, x * tile_size, y * tile_size)
+                    	exit_group.add(exit)
 
         return player, health_bar
 
     def draw(self):
         for tile in self.obstacle_list:
+            tile[1][0] += screen_scroll
             root.blit(tile[0], tile[1])
 
 
@@ -308,9 +336,13 @@ class Bullet(pygame.sprite.Sprite):
         if self.rect.right < 0 or self.rect.left > root_x:
             self.kill()
 
+        for tile in world.obstacle_list:
+            if tile[1].colliderect(self.rect):
+                self.kill()
+
         if pygame.sprite.spritecollide(player, bullet_group, False):
             if player.alive:
-                player.health -=1
+                player.health -= 10
                 self.kill()
         for enemy in enemy_group:
             if pygame.sprite.spritecollide(enemy, bullet_group, False):
@@ -349,6 +381,8 @@ class Grenade(pygame.sprite.Sprite):
         self.image = grenade_img
         self.rect = self.image.get_rect()
         self.rect.center = (x,y)
+        self.width = self.image.get_width()
+        self.height = self.image.get_height()
         self.direction = direction
 
     def update(self):
@@ -356,13 +390,20 @@ class Grenade(pygame.sprite.Sprite):
         dx = self.direction * self.speed
         dy = self.vel_y
 
-        if self.rect.bottom + dy > 400:
-            dy = 400 - self.rect.bottom
-            self.speed = 0
-
-        if self.rect.left + dx < 0 or self.rect.right + dx > root_x:
-            self.direction *= -1
-            dx = self.direction * self.speed
+        for tile in world.obstacle_list:
+            # коллизия от стен
+            if tile[1].colliderect(self.rect.x + dx, self.rect.y, self.width, self.height):
+                self.direction *= -1 
+                dx = self.direction * self.speed
+            # коллизия по оси У
+            if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.width, self.height):
+                self.speed = 0
+                if self.vel_y < 0:
+                    self.vel_y = 0
+                    dy = tile[1].bottom - self.rect.top
+                elif self.vel_y > 0:
+                    self.vel_y = 0
+                    dy = tile[1].top - self.rect.top
 
         self.rect.x += dx
         self.rect.y += dy
@@ -413,22 +454,24 @@ bullet_group = pygame.sprite.Group()
 grenade_group = pygame.sprite.Group()
 explosion_group = pygame.sprite.Group()
 item_box_group = pygame.sprite.Group()
+decoration_group = pygame.sprite.Group()
+water_group = pygame.sprite.Group()
+exit_group = pygame.sprite.Group()
 
-item_box = ItemBox('Health', 100, 363)
-item_box_group.add(item_box)
-item_box = ItemBox('Ammo', 400, 363)
-item_box_group.add(item_box)
-item_box = ItemBox('Grenade', 600, 363)
-item_box_group.add(item_box)
-
-player = Solder('player', 200, 200, 1.65, 5, 10, 10)
-health_bar = HealthBar(10, 10, player.health, player.health)
-
-enemy = Solder('enemy', 500, 200, 1.65, 2, 20, 0)
-enemy2 = Solder('enemy', 300, 200, 1.65, 2, 20, 0)
-
-enemy_group.add(enemy)
-enemy_group.add(enemy2)
+#create empty tile list
+world_data = []
+for row in range(rows):
+	r = [-1] * cols
+	world_data.append(r)
+#load in level data and create world
+with open(f'level{level}_data.csv', newline='') as csvfile:
+	reader = csv.reader(csvfile, delimiter=',')
+	for x, row in enumerate(reader):
+		for y, tile in enumerate(row):
+			world_data[x][y] = int(tile)
+            
+world = World()
+player, health_bar = world.process_data(world_data)
 
 
 run = True
@@ -437,6 +480,8 @@ while run:
     clock.tick(fps)
 
     draw_bg()
+
+    world.draw()
 
     health_bar.draw(player.health)
 
@@ -460,11 +505,17 @@ while run:
     grenade_group.update()
     explosion_group.update()
     item_box_group.update()
+    decoration_group.update()
+    water_group.update()
+    exit_group.update()
 
     bullet_group.draw(root)
     grenade_group.draw(root)
     explosion_group.draw(root)
     item_box_group.draw(root)
+    decoration_group.draw(root)
+    water_group.draw(root)
+    exit_group.draw(root)
     
     if player.alive:
         if shoot:

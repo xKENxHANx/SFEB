@@ -113,13 +113,13 @@ while run:
     dt('UP или DOWN чтобы сменить уровень', font, brown, 10, height + lower_margin - 60)
 
     if save_button.draw (root):
-        with open (f'level {lvl} _data.csv ','w', newline ='') as csvfile: 
+        with open (f'level{lvl}_data.csv ','w', newline ='') as csvfile: 
             writer = csv.writer (csvfile, delimiter =',') 
             for row  in world_data: 
                 writer.writerow (row) 
     if load_button.draw (root): 
         scroll = 0 
-        with open (f'level {lvl} _data.csv ', newline ='') as csvfile: 
+        with open (f'level{lvl}_data.csv ', newline ='') as csvfile: 
             reader= csv.reader(csvfile, delimiter = ',') 
             for x, row in enumerate (reader): 
                 for y, tile in enumerate (row): 
