@@ -29,6 +29,11 @@ shoot = False
 grenade = False
 grenade_thrown = False
 
+pine1_img = pygame.image.load('blek/pine1.png').convert_alpha()
+pine2_img = pygame.image.load('blek/pine2.png').convert_alpha()
+mountain_img = pygame.image.load('blek/mountain.png').convert_alpha()
+sky_img = pygame.image.load('blek/sky_cloud.png').convert_alpha()
+
 img_list = []
 for x in range(tile_types):
     img = pygame.image.load(f'sprites/tile/{x}.png')
@@ -65,7 +70,12 @@ def draw_text(text, font, text_col, x, y):
 
 def draw_bg():
     root.fill(BG)
-    #pygame.draw.line(root, red, (0,400), (root_x,400))
+    width = sky_img.get_width()
+    for x in range(4):
+        root.blit(sky_img, ((x * width) - bg_scroll * 0.5, 0))
+        root.blit(mountain_img,((x * width) - bg_scroll * 0.6, root_y - mountain_img.get_height() - 300))
+        root.blit(pine1_img, ((x * width) - bg_scroll * 0.7, root_y - pine1_img.get_height() - 150))
+        root.blit(pine2_img, ((x * width) - bg_scroll * 0.8, root_y - pine2_img.get_height()))
 
 
 class Solder(pygame.sprite.Sprite):
@@ -147,6 +157,9 @@ class Solder(pygame.sprite.Sprite):
         for tile in world.obstacle_list:
             if tile[1].colliderect(self.rect.x + dx, self.rect.y, self.width, self.height):
                 dx = 0
+                if self.char_type == "enemy":
+                    self.direction *= -1
+                    self.move_counter = 0
             if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.width, self.height):
                 if self.vel_y < 0:
                     self.vel_y = 0
@@ -164,7 +177,7 @@ class Solder(pygame.sprite.Sprite):
         self.rect.y += dy
 
         if self.char_type == 'player':
-            if (self.rect.right + dx < root_x - scroll_tresh and bg_scroll < (world.level_length * tile_size)- root_x) or (self.rect.left < scroll_tresh and bg_scroll > abs(dx)): #переделать
+            if (self.rect.right > root_x - scroll_tresh and bg_scroll < (world.level_length * tile_size)- root_x) or (self.rect.left < scroll_tresh and bg_scroll > abs(dx)): #переделать
                 self.rect.x -= dx
                 screen_scroll -= dx
 
@@ -292,6 +305,9 @@ class Decoration(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.midtop = (x + tile_size // 2, y +(tile_size - self.image.get_height()))
 
+    def update(self):
+        self.rect.x += screen_scroll
+
 class Water(pygame.sprite.Sprite):
     def __init__(self, img, x, y):
         pygame.sprite.Sprite.__init__(self)
@@ -299,12 +315,18 @@ class Water(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.midtop = (x + tile_size // 2, y +(tile_size - self.image.get_height()))
 
+    def update(self):
+        self.rect.x += screen_scroll
+
 class Exit(pygame.sprite.Sprite):
     def __init__(self, img, x, y):
         pygame.sprite.Sprite.__init__(self)
         self.image = img
         self.rect = self.image.get_rect()
         self.rect.midtop = (x + tile_size // 2, y +(tile_size - self.image.get_height()))
+
+    def update(self):
+            self.rect.x += screen_scroll
 
 class HealthBar():
     def __init__(self, x, y, health, max_health):
@@ -533,6 +555,8 @@ while run:
         else:
             player.update_action(0) # idle
         player.move(moving_left, moving_right)
+        screen_scroll = player.move(moving_left, moving_right)
+        bg_scroll -= screen_scroll
 
     for i in pygame.event.get():
         if i.type == pygame.QUIT:
