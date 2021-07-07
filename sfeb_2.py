@@ -2,6 +2,7 @@ import pygame
 import os
 import random
 import csv
+import button
 pygame.init()
 
 root_x = 800
@@ -14,20 +15,24 @@ clock = pygame.time.Clock()
 fps = 60
 
 gravity = 0.75
+scroll_tresh = 200
 rows = 16
 cols = 150
 tile_size = root_y // rows
 tile_types = 21
-level = 1
 screen_scroll = 0
-scroll_tresh = 0
 bg_scroll = 0
+level = 1
 
 moving_left = False
 moving_right = False
 shoot = False
 grenade = False
 grenade_thrown = False
+
+start_img = pygame.image.load("sprite/start_btn.png").convert_alpha()
+exit_img = pygame.image.load("sprite/exit_btn.png").convert_alpha()
+restart_img = pygame.image.load("sprite/restart_btn.png").convert_alpha()
 
 pine1_img = pygame.image.load('blek/pine1.png').convert_alpha()
 pine2_img = pygame.image.load('blek/pine2.png').convert_alpha()
@@ -53,7 +58,6 @@ item_boxes = {
     'Health'    :health_box_img,
     'Ammo'      :ammo_box_img,
     'Grenade'   :grenade_box_img
-
 }
 
 BG = (123, 102, 102)
@@ -71,12 +75,28 @@ def draw_text(text, font, text_col, x, y):
 def draw_bg():
     root.fill(BG)
     width = sky_img.get_width()
-    for x in range(4):
+    for x in range(5):
         root.blit(sky_img, ((x * width) - bg_scroll * 0.5, 0))
         root.blit(mountain_img,((x * width) - bg_scroll * 0.6, root_y - mountain_img.get_height() - 300))
         root.blit(pine1_img, ((x * width) - bg_scroll * 0.7, root_y - pine1_img.get_height() - 150))
         root.blit(pine2_img, ((x * width) - bg_scroll * 0.8, root_y - pine2_img.get_height()))
 
+def restart_level():
+    enemy_group.empty()
+    bullet_group.empty()
+    grenade_group.empty()
+    explosion_group.empty()
+    item_box_group.empty()
+    decoration_group.empty()
+    water_group.empty()
+    exit_group.empty()
+
+    data = []
+    for row in range(rows):
+        r = [-1] * cols
+        data.append(r)
+
+    return data
 
 class Solder(pygame.sprite.Sprite):
     def __init__(self, char_type, x, y, scale, speed, ammo, grenades):
@@ -99,7 +119,6 @@ class Solder(pygame.sprite.Sprite):
         self.frame_index = 0
         self.action = 0
         self.update_time = pygame.time.get_ticks()
-        #ai
         self.move_counter = 0
         self.vision = pygame.Rect(0, 0, 200, 20)
         self.idling = False
@@ -177,7 +196,7 @@ class Solder(pygame.sprite.Sprite):
         self.rect.y += dy
 
         if self.char_type == 'player':
-            if (self.rect.right > root_x - scroll_tresh and bg_scroll < (world.level_length * tile_size)- root_x) or (self.rect.left < scroll_tresh and bg_scroll > abs(dx)): #переделать
+            if (self.rect.right > root_x - scroll_tresh and bg_scroll < (world.level_length * tile_size) - root_x) or (self.rect.left < scroll_tresh and bg_scroll > abs(dx)):
                 self.rect.x -= dx
                 screen_scroll -= dx
 
@@ -253,7 +272,7 @@ class World():
         self.obstacle_list = []
 
     def process_data(self, data):
-        self.level_lenght = len(data[0])
+        self.level_length = len(data[0])
         for y, row in enumerate(data):
             for x, tile in enumerate(row):
                 if tile >= 0:
@@ -271,22 +290,22 @@ class World():
                     elif tile >= 11 and tile <= 14:
                     	decoration = Decoration(img, x * tile_size, y * tile_size)
                     	decoration_group.add(decoration)
-                    elif tile == 15:#create player
+                    elif tile == 15:
                     	player = Solder('player', x * tile_size, y * tile_size, 1.65, 5, 50, 15)
                     	health_bar = HealthBar(10, 10, player.health, player.health)
-                    elif tile == 16:#create enemies
+                    elif tile == 16:
                     	enemy = Solder('enemy', x * tile_size, y * tile_size, 1.65, 2, 20, 0)
                     	enemy_group.add(enemy)
-                    elif tile == 17:#create ammo box
+                    elif tile == 17:
                     	item_box = ItemBox('Ammo', x * tile_size, y * tile_size)
                     	item_box_group.add(item_box)
-                    elif tile == 18:#create grenade box
+                    elif tile == 18:
                     	item_box = ItemBox('Grenade', x * tile_size, y * tile_size)
                     	item_box_group.add(item_box)
-                    elif tile == 19:#create health box
+                    elif tile == 19:
                     	item_box = ItemBox('Health', x * tile_size, y * tile_size)
                     	item_box_group.add(item_box)
-                    elif tile == 20:#create exit
+                    elif tile == 20:
                     	exit = Exit(img, x * tile_size, y * tile_size)
                     	exit_group.add(exit)
 
@@ -326,7 +345,7 @@ class Exit(pygame.sprite.Sprite):
         self.rect.midtop = (x + tile_size // 2, y +(tile_size - self.image.get_height()))
 
     def update(self):
-            self.rect.x += screen_scroll
+        self.rect.x += screen_scroll
 
 class HealthBar():
     def __init__(self, x, y, health, max_health):
@@ -352,9 +371,7 @@ class Bullet(pygame.sprite.Sprite):
         self.direction = direction
 
     def update(self):
-        #движение пули
         self.rect.x += (self.direction * self.speed)
-        #коллизия пули
         if self.rect.right < 0 or self.rect.left > root_x:
             self.kill()
 
@@ -470,6 +487,9 @@ class Explosion(pygame.sprite.Sprite):
 			else:
 				self.image = self.images[self.frame_index]
 
+start_button = button.Button(root_x // 2 - 130, root_y // 2 - 150, start_img, 1)
+exit_button = button.Button(root_x // 2 - 110, root_y // 2 - 50, exit_img, 1)
+restart_button = button.Button(root_x // 2 - 100, root_y // 2 - 50, restart_img, 2)
 
 enemy_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
@@ -480,12 +500,13 @@ decoration_group = pygame.sprite.Group()
 water_group = pygame.sprite.Group()
 exit_group = pygame.sprite.Group()
 
-#create empty tile list
+
+
+
 world_data = []
 for row in range(rows):
 	r = [-1] * cols
 	world_data.append(r)
-#load in level data and create world
 with open(f'level{level}_data.csv', newline='') as csvfile:
 	reader = csv.reader(csvfile, delimiter=',')
 	for x, row in enumerate(reader):
@@ -501,66 +522,75 @@ while run:
 
     clock.tick(fps)
 
-    draw_bg()
+    if start_game == False:
+        root.fill(BG)
+        if start_button.draw(root):
+            start_game = True
+        if exit_button.draw(root):
+            run = False
 
-    world.draw()
+    else:
+        draw_bg()
 
-    health_bar.draw(player.health)
+        world.draw()
 
-    draw_text("AMMO: ",font, WHITE, 10, 35)
-    for x in range(player.ammo):
-        root.blit(bullet_img, (90+(x*10), 40))
+        health_bar.draw(player.health)
+
+        draw_text("AMMO: ",font, WHITE, 10, 35)
+        for x in range(player.ammo):
+            root.blit(bullet_img, (90+(x*10), 40))
     
-    draw_text("GRENADES: ",font, WHITE, 10, 60)
-    for x in range(player.grenades):
-        root.blit(grenade_img, (135+(x*15), 60))
+        draw_text("GRENADES: ",font, WHITE, 10, 60)
+        for x in range(player.grenades):
+            root.blit(grenade_img, (135+(x*15), 60))
 
-    player.update()
-    player.draw()
+        player.update()
+        player.draw()
 
-    for enemy in enemy_group:
-        enemy.ai()
-        enemy.update()
-        enemy.draw()
-
-    bullet_group.update()
-    grenade_group.update()
-    explosion_group.update()
-    item_box_group.update()
-    decoration_group.update()
-    water_group.update()
-    exit_group.update()
-
-    bullet_group.draw(root)
-    grenade_group.draw(root)
-    explosion_group.draw(root)
-    item_box_group.draw(root)
-    decoration_group.draw(root)
-    water_group.draw(root)
-    exit_group.draw(root)
+        for enemy in enemy_group:
+            enemy.ai()
+            enemy.update()
+            enemy.draw()
     
-    if player.alive:
-        if shoot:
-            player.shoot()
-        elif grenade and grenade_thrown == False and player.grenades > 0:
-            grenade = Grenade(player.rect.centerx + (0.5 * player.rect.size[0] * player.direction), player.rect.top, player.direction)
-            grenade_group.add(grenade)
-            player.grenades -= 1
-            grenade_thrown = True
-
-        if player.in_air:
-            player.update_action(2) #jump
-        elif moving_left or moving_right:
-            player.update_action(1) # run
-        else:
-            player.update_action(0) # idle
-        player.move(moving_left, moving_right)
-        screen_scroll = player.move(moving_left, moving_right)
-        bg_scroll -= screen_scroll
+        bullet_group.update()
+        grenade_group.update()
+        explosion_group.update()
+        item_box_group.update()
+        decoration_group.update()
+        water_group.update()
+        exit_group.update()
+    
+        bullet_group.draw(root)
+        grenade_group.draw(root)
+        explosion_group.draw(root)
+        item_box_group.draw(root)
+        decoration_group.draw(root)
+        water_group.draw(root)
+        exit_group.draw(root)
+        
+        if player.alive:
+            if shoot:
+                player.shoot()
+            elif grenade and grenade_thrown == False and player.grenades > 0:
+                grenade = Grenade(player.rect.centerx + (0.5 * player.rect.size[0] * player.direction), player.rect.top, player.direction)
+                grenade_group.add(grenade)
+                player.grenades -= 1
+                grenade_thrown = True
+    
+            if player.in_air:
+                player.update_action(2) #jump
+            elif moving_left or moving_right:
+                player.update_action(1) # run
+            else:
+                player.update_action(0) # idle
+    
+            screen_scroll = player.move(moving_left, moving_right)
+            bg_scroll -= screen_scroll
 
     for i in pygame.event.get():
         if i.type == pygame.QUIT:
             run = False
+
 
         if i.type == pygame.KEYDOWN:
             if i.key == pygame.K_a:
