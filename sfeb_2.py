@@ -23,6 +23,8 @@ tile_types = 21
 screen_scroll = 0
 bg_scroll = 0
 level = 1
+start_game = False
+max_level = 3
 
 moving_left = False
 moving_right = False
@@ -30,9 +32,9 @@ shoot = False
 grenade = False
 grenade_thrown = False
 
-start_img = pygame.image.load("sprite/start_btn.png").convert_alpha()
-exit_img = pygame.image.load("sprite/exit_btn.png").convert_alpha()
-restart_img = pygame.image.load("sprite/restart_btn.png").convert_alpha()
+start_img = pygame.image.load("sprites/start_btn.png").convert_alpha()
+exit_img = pygame.image.load("sprites/exit_btn.png").convert_alpha()
+restart_img = pygame.image.load("sprites/restart_btn.png").convert_alpha()
 
 pine1_img = pygame.image.load('blek/pine1.png').convert_alpha()
 pine2_img = pygame.image.load('blek/pine2.png').convert_alpha()
@@ -195,10 +197,20 @@ class Solder(pygame.sprite.Sprite):
         self.rect.x += dx
         self.rect.y += dy
 
+        if pygame.sprite.spritecollide(self, water_group, False):
+            self.health = 0
+
+        level_complite = False
+        if pygame.sprite.spritecollide(self, exit_group, False):
+            level_complite = True
+
+        if self.rect.bottom > root_y:
+            self.health = 0
+
         if self.char_type == 'player':
             if (self.rect.right > root_x - scroll_tresh and bg_scroll < (world.level_length * tile_size) - root_x) or (self.rect.left < scroll_tresh and bg_scroll > abs(dx)):
                 self.rect.x -= dx
-                screen_scroll -= dx
+                screen_scroll = -dx
 
         return screen_scroll
 
@@ -238,6 +250,8 @@ class Solder(pygame.sprite.Sprite):
                 	self.idling_counter -= 1
                 	if self.idling_counter <= 0:
                 		self.idling = False
+
+        self.rect.x += screen_scroll
 
     def update_animation(self):
         animation_coldown = 100
@@ -371,7 +385,7 @@ class Bullet(pygame.sprite.Sprite):
         self.direction = direction
 
     def update(self):
-        self.rect.x += (self.direction * self.speed)
+        self.rect.x += (self.direction * self.speed) + screen_scroll
         if self.rect.right < 0 or self.rect.left > root_x:
             self.kill()
 
@@ -398,6 +412,7 @@ class ItemBox(pygame.sprite.Sprite):
         self.rect.midtop = (x + tile_size // 2, y +(tile_size - self.image.get_height()))
 
     def update(self):
+        self.rect.x += screen_scroll
         if pygame.sprite.collide_rect(self, player):
             if self.item_type == 'Health':
                 player.health += 25
@@ -444,7 +459,7 @@ class Grenade(pygame.sprite.Sprite):
                     self.vel_y = 0
                     dy = tile[1].top - self.rect.top
 
-        self.rect.x += dx
+        self.rect.x += dx + screen_scroll
         self.rect.y += dy
 
         #таймер до взрыва
@@ -476,6 +491,8 @@ class Explosion(pygame.sprite.Sprite):
 
 
 	def update(self):
+		self.rect.x += screen_scroll 
+
 		EXPLOSION_SPEED = 4
 		self.counter += 1
 
@@ -486,6 +503,7 @@ class Explosion(pygame.sprite.Sprite):
 				self.kill()
 			else:
 				self.image = self.images[self.frame_index]
+
 
 start_button = button.Button(root_x // 2 - 130, root_y // 2 - 150, start_img, 1)
 exit_button = button.Button(root_x // 2 - 110, root_y // 2 - 50, exit_img, 1)
@@ -587,10 +605,23 @@ while run:
             screen_scroll = player.move(moving_left, moving_right)
             bg_scroll -= screen_scroll
 
+        else:
+            screen_scroll = 0
+            if restart_button.draw(root):
+                bg_scroll = 0
+                world_data = restart_level()
+                with open(f'level{level}_data.csv', newline='') as csvfile:
+                    reader = csv.reader(csvfile, delimeter=',')
+                    for x, row in enumerate(reader):
+                        for y, tile in enumerate(row):
+                            world_data[x][y] = int(tile)
+
+        world = World()
+        player, health_bar = world.process_data(world_data)
+
     for i in pygame.event.get():
         if i.type == pygame.QUIT:
             run = False
-
 
         if i.type == pygame.KEYDOWN:
             if i.key == pygame.K_a:
