@@ -611,13 +611,13 @@ while run:
                 bg_scroll = 0
                 world_data = restart_level()
                 with open(f'level{level}_data.csv', newline='') as csvfile:
-                    reader = csv.reader(csvfile, delimeter=',')
+                    reader = csv.reader(csvfile, delimiter=',')
                     for x, row in enumerate(reader):
                         for y, tile in enumerate(row):
                             world_data[x][y] = int(tile)
 
-        world = World()
-        player, health_bar = world.process_data(world_data)
+                world = World()
+                player, health_bar = world.process_data(world_data)
 
     for i in pygame.event.get():
         if i.type == pygame.QUIT:
