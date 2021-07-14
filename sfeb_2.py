@@ -200,9 +200,9 @@ class Solder(pygame.sprite.Sprite):
         if pygame.sprite.spritecollide(self, water_group, False):
             self.health = 0
 
-        level_complite = False
+        level_complit = False
         if pygame.sprite.spritecollide(self, exit_group, False):
-            level_complite = True
+            level_complit = True
 
         if self.rect.bottom > root_y:
             self.health = 0
@@ -212,7 +212,7 @@ class Solder(pygame.sprite.Sprite):
                 self.rect.x -= dx
                 screen_scroll = -dx
 
-        return screen_scroll
+        return screen_scroll, level_complit
 
     def shoot(self):
         if self.shoot_cooldown == 0 and self.ammo > 0:
@@ -506,7 +506,7 @@ class Explosion(pygame.sprite.Sprite):
 
 
 start_button = button.Button(root_x // 2 - 130, root_y // 2 - 150, start_img, 1)
-exit_button = button.Button(root_x // 2 - 110, root_y // 2 - 50, exit_img, 1)
+exit_button = button.Button(root_x // 2 - 110, root_y // 2 + 50, exit_img, 1)
 restart_button = button.Button(root_x // 2 - 100, root_y // 2 - 50, restart_img, 2)
 
 enemy_group = pygame.sprite.Group()
@@ -601,9 +601,24 @@ while run:
                 player.update_action(1) # run
             else:
                 player.update_action(0) # idle
-    
-            screen_scroll = player.move(moving_left, moving_right)
+            
+            screen_scroll, level_complit = player.move(moving_left, moving_right)
             bg_scroll -= screen_scroll
+            print(level_complit)
+
+            if level_complit:
+                level += 1
+                bg_scroll = 0
+                world_data = restart_level()
+                if level <= max_level:
+                    with open(f'level{level}_data.csv', newline='') as csvfile:
+                        reader = csv.reader(csvfile, delimiter=',')
+                        for x, row in enumerate(reader):
+                            for y, tile in enumerate(row):
+                                world_data[x][y] = int(tile)
+
+                    world = World()
+                    player, health_bar = world.process_data(world_data)
 
         else:
             screen_scroll = 0
